@@ -264,6 +264,15 @@ export default function AnalysisV2() {
           ) : null}
         </section>
 
+        <AnalysisConsole
+          percent={percent}
+          phase={phase}
+          lines={lines}
+          running={status === "working"}
+        />
+
+
+
 
         {analysis ? (
           <>
@@ -432,6 +441,7 @@ export default function AnalysisV2() {
               scoutData={buildReport(analysis, "LIVE")}
               ohlcCsv={csv ?? ""}
               onVerdict={handleVerdict}
+              onLog={log}
             />
 
 
