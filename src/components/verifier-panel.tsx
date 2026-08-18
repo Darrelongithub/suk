@@ -1,7 +1,11 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 
-import { verifySetup, type VerifyResult } from "@/lib/verifier.functions";
+import type { VerifyResult } from "@/lib/verifier.prompt";
+
+type VerifyEvent =
+  | { type: "log"; message: string; tone?: "info" | "warn" | "error" | "success" }
+  | { type: "result"; result: VerifyResult }
+  | { type: "error"; message: string };
 
 interface VerifierPanelProps {
   /** Analyzer LIVE report: SUMMARY block, live PASS setups, overlaps. */
@@ -15,7 +19,6 @@ interface VerifierPanelProps {
 }
 
 export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: VerifierPanelProps) {
-  const runVerifier = useServerFn(verifySetup);
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,22 +37,45 @@ export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: Verifier
       setBusy(true);
       setError(null);
       setResult(null);
-      onLogRef.current?.("Verifier: sending live setups + OHLC to the model…");
+      onLogRef.current?.("Picker: sending live setups + OHLC to Gemini 2.5 Flash…");
       try {
-        const outcome = await runVerifier({ data: { scoutData, ohlcCsv } });
-        if (cancelled) return;
-        setResult(outcome);
-        onLogRef.current?.(
-          `Verifier: verdict received via ${outcome.provider} · ${outcome.model}`,
-          "success",
-        );
-        for (const warning of outcome.warnings) onLogRef.current?.(`Verifier: ${warning}`, "warn");
-        onVerdictRef.current?.(outcome);
+        const res = await fetch("/api/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scoutData, ohlcCsv }),
+        });
+        if (!res.ok || !res.body) {
+          throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (line.trim() === "" || cancelled) continue;
+            const event = JSON.parse(line) as VerifyEvent;
+            if (event.type === "log") onLogRef.current?.(event.message, event.tone);
+            if (event.type === "error") {
+              setError(event.message);
+              onLogRef.current?.(event.message, "error");
+            }
+            if (event.type === "result") {
+              setResult(event.result);
+              onVerdictRef.current?.(event.result);
+            }
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : String(err);
           setError(message);
-          onLogRef.current?.(`Verifier failed: ${message}`, "error");
+          onLogRef.current?.(`Picker failed: ${message}`, "error");
         }
       } finally {
         if (!cancelled) setBusy(false);
@@ -59,7 +85,7 @@ export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: Verifier
     return () => {
       cancelled = true;
     };
-  }, [scoutData, ohlcCsv, runVerifier]);
+  }, [scoutData, ohlcCsv]);
 
   return (
     <section className="panel flex flex-col gap-4 p-6">
