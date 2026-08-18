@@ -165,6 +165,24 @@ export function* analysisSteps(text: string): Generator<ProgressEvent, RunOutcom
     row.candlesSinceTrigger = evaluation.candlesSinceTrigger;
   }
 
+  yield {
+    percent: 94,
+    message: "Computing context fields (ATR, confluence, HTF trend, session, staleness)…",
+  };
+  // Context only: these never flip result or setupStatus, they add ranking signal.
+  const htfModel = buildHtfModel(candles);
+  for (const row of passing) {
+    const candle = byDatetime.get(row.datetime.trim()) ?? candles[row.index];
+    if (!candle) continue;
+    row.atr30m = candle.atr30m;
+    if (row.entry !== undefined) row.confluence = computeConfluence(ctx, candle, row.entry);
+    row.htf = htfContextAt(htfModel, row.index, row.side);
+    row.sessionContext = sessionContextFor(candles, ctx.blocks, candle);
+    const staleness = evaluateStaleness(row, candles);
+    row.stalenessFlag = staleness.flag;
+    row.stalenessReason = staleness.reason;
+  }
+
   const statusRank: Record<string, number> = { PENDING: 0, FILLED: 1 };
   const live = passing
     .filter((r) => isLive(r.setupStatus))
