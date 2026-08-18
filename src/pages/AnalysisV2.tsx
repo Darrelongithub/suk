@@ -394,14 +394,17 @@ export default function AnalysisV2() {
                     {analysis.historical.slice(0, 50).map((row, i) => (
                       <li
                         key={`${row.strategyId}-${row.index}`}
-                        className="num flex flex-wrap items-center justify-between gap-2 rounded-md bg-secondary/40 px-4 py-2 text-xs text-muted-foreground"
+                        className="num flex flex-col gap-1 rounded-md bg-secondary/40 px-4 py-2 text-xs text-muted-foreground"
                       >
-                        <span>
-                          {i + 1}. [{row.setupStatus}] {row.strategy} @ {row.datetime}
-                        </span>
-                        <span>
-                          RR {row.rr?.toFixed(2)} · {row.statusNote}
-                        </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span>
+                            {i + 1}. [{row.setupStatus}] {row.strategy} @ {row.datetime}
+                          </span>
+                          <span>
+                            RR {row.rr?.toFixed(2)} · {row.statusNote}
+                          </span>
+                        </div>
+                        <SetupContext row={row} />
                       </li>
                     ))}
                   </ol>
