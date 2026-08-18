@@ -314,25 +314,28 @@ export default function AnalysisV2() {
                     {analysis.live.map((row, i) => (
                       <li
                         key={`${row.strategyId}-${row.index}`}
-                        className="num flex flex-wrap items-center justify-between gap-2 rounded-md bg-secondary/60 px-4 py-2 text-xs text-foreground"
+                        className="num flex flex-col gap-1 rounded-md bg-secondary/60 px-4 py-2 text-xs text-foreground"
                       >
-                        <span>
-                          {i + 1}.{" "}
-                          <span
-                            className={
-                              row.setupStatus === "FILLED"
-                                ? "rounded bg-warning/15 px-2 py-0.5 text-warning"
-                                : "rounded bg-success/15 px-2 py-0.5 text-success"
-                            }
-                          >
-                            {row.setupStatus}
-                          </span>{" "}
-                          {row.strategy} @ {row.datetime}
-                        </span>
-                        <span className="text-muted-foreground">
-                          entry {price(row.entry)} · SL {price(row.sl)} · TP {price(row.tp)} ·{" "}
-                          <span className="text-success">RR {row.rr?.toFixed(2)}</span>
-                        </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span>
+                            {i + 1}.{" "}
+                            <span
+                              className={
+                                row.setupStatus === "FILLED"
+                                  ? "rounded bg-warning/15 px-2 py-0.5 text-warning"
+                                  : "rounded bg-success/15 px-2 py-0.5 text-success"
+                              }
+                            >
+                              {row.setupStatus}
+                            </span>{" "}
+                            {row.strategy} @ {row.datetime}
+                          </span>
+                          <span className="text-muted-foreground">
+                            entry {price(row.entry)} · SL {price(row.sl)} · TP {price(row.tp)} ·{" "}
+                            <span className="text-success">RR {row.rr?.toFixed(2)}</span>
+                          </span>
+                        </div>
+                        <SetupContext row={row} />
                       </li>
                     ))}
                   </ol>
