@@ -472,16 +472,32 @@ export default function AnalysisV2() {
               </p>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[880px] border-collapse text-left text-xs">
+                <table className="w-full min-w-[1400px] border-collapse text-left text-xs">
                   <thead>
                     <tr className="text-muted-foreground">
-                      {["Datetime", "Strategy", "Result", "Trend", "Entry", "SL", "TP", "RR", "Reason"].map(
-                        (head) => (
-                          <th key={head} className="border-b border-border px-3 py-2 font-medium">
-                            {head}
-                          </th>
-                        ),
-                      )}
+                      {[
+                        "Datetime",
+                        "Strategy",
+                        "Result",
+                        "Trend",
+                        "Entry",
+                        "SL",
+                        "TP",
+                        "RR",
+                        "ATR(30m)",
+                        "Confluence",
+                        "H1/H4/D1",
+                        "HTF align",
+                        "Asian range",
+                        "London open",
+                        "NY open",
+                        "Staleness",
+                        "Reason",
+                      ].map((head) => (
+                        <th key={head} className="border-b border-border px-3 py-2 font-medium">
+                          {head}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -507,11 +523,56 @@ export default function AnalysisV2() {
                         <td className="num border-b border-border/60 px-3 py-2">
                           {row.rr === undefined ? "—" : row.rr.toFixed(2)}
                         </td>
+                        <td className="num border-b border-border/60 px-3 py-2">
+                          {price(row.atr30m)}
+                        </td>
+                        <td className="border-b border-border/60 px-3 py-2">
+                          {row.confluence ? (
+                            <span title={row.confluence.detail}>
+                              {row.confluence.score}
+                              {row.confluence.matched.length > 0
+                                ? ` (${row.confluence.matched.join(", ")})`
+                                : ""}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="border-b border-border/60 px-3 py-2">
+                          {row.htf ? `${row.htf.h1}/${row.htf.h4}/${row.htf.d1}` : "—"}
+                        </td>
+                        <td className="border-b border-border/60 px-3 py-2">
+                          {row.htf
+                            ? `${row.htf.h1Alignment}/${row.htf.h4Alignment}/${row.htf.d1Alignment}`
+                            : "—"}
+                        </td>
+                        <td className="num border-b border-border/60 px-3 py-2">
+                          {row.sessionContext?.asianRangeText ?? "—"}
+                        </td>
+                        <td className="border-b border-border/60 px-3 py-2">
+                          {row.sessionContext?.londonOpenDirection ?? "—"}
+                        </td>
+                        <td className="border-b border-border/60 px-3 py-2">
+                          {row.sessionContext?.nyOpenDirection ?? "—"}
+                        </td>
+                        <td className="border-b border-border/60 px-3 py-2">
+                          {row.stalenessFlag ? (
+                            <span
+                              className={`rounded px-1.5 py-0.5 ${stalenessTone(row.stalenessFlag)}`}
+                              title={row.stalenessReason ?? ""}
+                            >
+                              {row.stalenessFlag}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td className="border-b border-border/60 px-3 py-2 text-muted-foreground">
                           {row.reason}
                         </td>
                       </tr>
                     ))}
+                  </tbody>
                   </tbody>
                 </table>
               </div>
