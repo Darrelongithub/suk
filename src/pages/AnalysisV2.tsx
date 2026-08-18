@@ -441,6 +441,7 @@ export default function AnalysisV2() {
               scoutData={buildReport(analysis, "LIVE")}
               ohlcCsv={csv ?? ""}
               onVerdict={handleVerdict}
+              onLog={log}
             />
 
 
