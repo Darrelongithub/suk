@@ -92,7 +92,7 @@ async function callChat(
       ...extraHeaders,
     },
     body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 3000 }),
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(35_000),
   });
 
   const text = await res.text();
