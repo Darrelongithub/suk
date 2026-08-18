@@ -16,7 +16,6 @@ import { Route as AnalysisV1RouteImport } from './routes/analysis.v1'
 import { Route as AnalysisV2RouteImport } from './routes/analysis.v2'
 import { Route as ApiAnalysisRouteImport } from './routes/api/analysis'
 import { Route as ApiVerifyRouteImport } from './routes/api/verify'
-import { Route as ApiPublicModelPingRouteImport } from './routes/api/public/model-ping'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -53,11 +52,6 @@ const ApiVerifyRoute = ApiVerifyRouteImport.update({
   path: '/api/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicModelPingRoute = ApiPublicModelPingRouteImport.update({
-  id: '/api/public/model-ping',
-  path: '/api/public/model-ping',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,7 +61,6 @@ export interface FileRoutesByFullPath {
   '/api/analysis': typeof ApiAnalysisRoute
   '/api/verify': typeof ApiVerifyRoute
   '/analysis/': typeof AnalysisIndexRoute
-  '/api/public/model-ping': typeof ApiPublicModelPingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -76,7 +69,6 @@ export interface FileRoutesByTo {
   '/api/analysis': typeof ApiAnalysisRoute
   '/api/verify': typeof ApiVerifyRoute
   '/analysis': typeof AnalysisIndexRoute
-  '/api/public/model-ping': typeof ApiPublicModelPingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,7 +79,6 @@ export interface FileRoutesById {
   '/api/analysis': typeof ApiAnalysisRoute
   '/api/verify': typeof ApiVerifyRoute
   '/analysis/': typeof AnalysisIndexRoute
-  '/api/public/model-ping': typeof ApiPublicModelPingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,7 +90,6 @@ export interface FileRouteTypes {
     | '/api/analysis'
     | '/api/verify'
     | '/analysis/'
-    | '/api/public/model-ping'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -108,7 +98,6 @@ export interface FileRouteTypes {
     | '/api/analysis'
     | '/api/verify'
     | '/analysis'
-    | '/api/public/model-ping'
   id:
     | '__root__'
     | '/'
@@ -118,7 +107,6 @@ export interface FileRouteTypes {
     | '/api/analysis'
     | '/api/verify'
     | '/analysis/'
-    | '/api/public/model-ping'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -126,7 +114,6 @@ export interface RootRouteChildren {
   AnalysisRoute: typeof AnalysisRouteWithChildren
   ApiAnalysisRoute: typeof ApiAnalysisRoute
   ApiVerifyRoute: typeof ApiVerifyRoute
-  ApiPublicModelPingRoute: typeof ApiPublicModelPingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -180,13 +167,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/model-ping': {
-      id: '/api/public/model-ping'
-      path: '/api/public/model-ping'
-      fullPath: '/api/public/model-ping'
-      preLoaderRoute: typeof ApiPublicModelPingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -211,7 +191,6 @@ const rootRouteChildren: RootRouteChildren = {
   AnalysisRoute: AnalysisRouteWithChildren,
   ApiAnalysisRoute: ApiAnalysisRoute,
   ApiVerifyRoute: ApiVerifyRoute,
-  ApiPublicModelPingRoute: ApiPublicModelPingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
