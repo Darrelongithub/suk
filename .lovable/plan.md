@@ -1,31 +1,30 @@
-# Fix the NVIDIA / picker failure
+# Verifier on Gemini 2.5 Flash (Google AI Studio)
 
-## What's actually wrong
+## Why the picker never finishes today
 
-The picker never finishes because none of the providers it tries can answer:
+Neither `OPENROUTER_API_KEY` nor `NVIDIA_API_KEY` is configured on this project, so every model attempt in `src/lib/verifier.functions.ts` fails and no verdict ever lands. The slugs themselves are also stale (the nemotron ultra slug 502s, the free DeepSeek slugs were retired). Replacing the whole chain with one direct Google AI Studio call removes both problems permanently.
 
-- `OPENROUTER_API_KEY` and `NVIDIA_API_KEY` are not configured on this project, so every OpenRouter and NVIDIA attempt in `src/lib/verifier.functions.ts` fails immediately and the run ends with "Verifier unavailable".
-- On top of that, the NVIDIA slugs themselves are stale — `nvidia/nemotron-3-ultra-550b-a55b:free` 502s upstream and the free DeepSeek slugs have been retired — so even with a key those attempts would keep failing.
-- The build is currently broken: `src/lib/verifier.server.ts` (written last session) imports `./verifier.prompt`, a file that does not exist.
+The build is currently broken too: `src/lib/verifier.server.ts` imports `./verifier.prompt`, a file that does not exist. This plan creates it.
 
-The fix is to stop depending on NVIDIA/OpenRouter at all and run the picker on the built-in Lovable AI Gateway, which is already configured and answering on this project.
+## What changes
 
-## The fix
+1. **Secret** — collect `GEMINI_API_KEY` through the secure secret form and read it only on the server, never in client code.
+2. **Single provider** — the verifier calls
+   `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
+   with the key in the `x-goog-api-key` header (Google's current documented method; the `?key=` query param stays the fallback if the header path errors). I'll check the live Google AI Studio docs for the exact request shape before wiring it.
+3. **Request shape** — Google's native generateContent format, not OpenAI-style: the existing `VERIFIER_SYSTEM_PROMPT` goes in `systemInstruction`, the scout output + trimmed OHLC CSV goes in `contents[0].parts[0].text`, and the reply is read from `candidates[0].content.parts[].text`. The 60k-char CSV trim stays as is.
+4. **Remove entirely** — OpenRouter and NVIDIA NIM URLs, keys, headers, the multi-model fallback loop, and every DeepSeek / Nemotron / gpt-oss slug. One provider, one model, no chain.
+5. **No abort timer** — the current `AbortSignal.timeout(...)` is dropped; an aborted generation is billed anyway and Gemini 2.5 Flash can think for a while. Errors surface as-is instead.
+6. **`src/lib/verifier.prompt.ts`** — new file holding `VERIFIER_SYSTEM_PROMPT` and the `VerifyResult` type, with `provider` narrowed to `"gemini"`. Unbreaks the build.
+7. **Console progress** — a small POST route consumes the existing `runVerifier` generator and streams one JSON line per event; `VerifierPanel` reads it and forwards each event to `onLog`, so the console narrates "asking Gemini 2.5 Flash…", "answered in Ys", or the exact error text.
+8. **Cleanup** — delete the temporary diagnostic route `src/routes/api/public/model-ping.ts`; `verifier.functions.ts` keeps only what still needs to be imported.
 
-1. Create `src/lib/verifier.prompt.ts` holding `VERIFIER_SYSTEM_PROMPT` and the `VerifyResult` type, with `provider` widened to include `"lovable"`. This unbreaks the build.
-2. Point the picker at the Lovable AI Gateway as the primary provider, using catalog model ids and the gateway's own auth header. OpenRouter and NVIDIA stay only as optional fallbacks that are skipped entirely when their keys are absent — no more stalling on dead slugs.
-3. Keep the per-model timeout short (45s) so a slow model fails over instead of hanging the page, and surface each attempt's outcome as a log line.
-4. Stream picker progress to the console: a small POST route that consumes the existing `runVerifier` generator and emits one JSON line per event; `VerifierPanel` reads that stream and forwards each event to `onLog`, so the console narrates "asking model X…", "answered in Ys", "failed — reason".
-5. Delete the temporary diagnostic route `src/routes/api/public/model-ping.ts`.
-6. Retire the old `verifySetup` server function once the panel uses the stream, keeping `verifier.functions.ts` only as a re-export of the prompt/type if anything still imports it.
-7. Run one real picker request end to end and read the verdict before calling it done, then re-run typecheck and tests.
+Unchanged: the verifier prompt text, its inputs (picker output + SUMMARY/setups + candles), and the output panel rendering.
 
-## Technical notes
+## Error handling
 
-- Gateway calls go to `https://ai.gateway.lovable.dev/v1/chat/completions` with the `Lovable-API-Key` header (not `Authorization: Bearer`), and model ids must be exact catalog strings — I'll confirm the current chat ids against the model catalog before wiring them in rather than reusing the ones in the draft file.
-- Gateway error statuses are handled per the standard contract: 429/5xx fail over to the next model, 400/401/402/403 are terminal and surfaced verbatim in the console.
-- No analyzer logic changes; this is confined to the verifier/picker path and its UI wiring.
+Google's own status codes, surfaced verbatim in the console rather than retried in a loop: `429` means the free-tier limit (10/min, 250/day) was hit and says to wait; `400`/`403` mean a bad or unauthorised key; `5xx` gets a single bounded retry.
 
-## Not included
+## Verification
 
-The V2 UI cleanup you asked for earlier is not part of this plan — say the word and I'll fold it in or do it right after.
+Run one real verifier request end to end, read the returned verdict, then re-run typecheck and tests.
