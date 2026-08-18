@@ -11,7 +11,7 @@ import { downloadBundle, type BundleOutcome } from "@/lib/analyzer/bundle";
 import { runAnalysisAsync } from "@/lib/analyzer/run";
 import type { Analysis, ResultRow } from "@/lib/analyzer/types";
 import { useAnalysisSnapshot } from "@/lib/analysis-store";
-import type { VerifyResult } from "@/lib/verifier.functions";
+import type { VerifyResult } from "@/lib/verifier.prompt";
 
 type Status = "idle" | "working" | "ready" | "error";
 
