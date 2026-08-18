@@ -573,7 +573,6 @@ export default function AnalysisV2() {
                       </tr>
                     ))}
                   </tbody>
-                  </tbody>
                 </table>
               </div>
 
