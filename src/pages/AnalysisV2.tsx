@@ -264,6 +264,15 @@ export default function AnalysisV2() {
           ) : null}
         </section>
 
+        <AnalysisConsole
+          percent={percent}
+          phase={phase}
+          lines={lines}
+          running={status === "working"}
+        />
+
+
+
 
         {analysis ? (
           <>
