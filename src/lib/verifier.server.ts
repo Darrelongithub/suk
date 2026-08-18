@@ -1,6 +1,8 @@
 import { VERIFIER_SYSTEM_PROMPT, type VerifyResult } from "./verifier.prompt";
 
-const MODEL = "gemini-2.5-flash";
+// Google AI Studio 404s gemini-2.5-flash for new keys ("no longer available to new users")
+// and names gemini-3.6-flash as its replacement — same free tier, same Flash class.
+const MODEL = "gemini-3.6-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const OHLC_CHAR_LIMIT = 60_000;
 
