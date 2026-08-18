@@ -43,6 +43,43 @@ function price(value: number | undefined) {
   return value === undefined ? "—" : Number(value.toFixed(5)).toString();
 }
 
+function stalenessTone(flag: string | undefined) {
+  return flag === "Stale"
+    ? "bg-destructive/15 text-destructive"
+    : flag === "Aging"
+      ? "bg-warning/15 text-warning"
+      : "bg-success/15 text-success";
+}
+
+/** Context-only signals: ranking/reasoning info, never pass/fail gates. */
+function SetupContext({ row }: { row: ResultRow }) {
+  return (
+    <div className="flex flex-col gap-0.5 text-[11px] text-muted-foreground">
+      <span>
+        ATR(30m) {price(row.atr30m)} · Confluence {row.confluence?.score ?? "—"}
+        {row.confluence && row.confluence.matched.length > 0
+          ? ` (${row.confluence.matched.join(", ")})`
+          : ""}
+      </span>
+      <span>
+        HTF {row.htf ? row.htf.summary : "—"}
+        {row.htf ? ` · ${row.htf.alignedCount}/3 aligned` : ""}
+      </span>
+      <span>
+        Asian range {row.sessionContext?.asianRangeText ?? "—"} · London{" "}
+        {row.sessionContext?.londonOpenDirection ?? "—"} · NY{" "}
+        {row.sessionContext?.nyOpenDirection ?? "—"}
+      </span>
+      <span>
+        <span className={`rounded px-1.5 py-0.5 ${stalenessTone(row.stalenessFlag)}`}>
+          {row.stalenessFlag ?? "—"}
+        </span>{" "}
+        {row.stalenessReason ?? ""}
+      </span>
+    </div>
+  );
+}
+
 export default function AnalysisV2() {
   const snapshot = useAnalysisSnapshot();
   const [status, setStatus] = useState<Status>("idle");
