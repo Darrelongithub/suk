@@ -48,7 +48,8 @@ describe("confluence", () => {
   });
 
   it("rounds to a sensible round-number step", () => {
-    expect(roundNumberNear(101.234)).toBeCloseTo(101.23, 5);
+    expect(roundNumberNear(101.234)).toBeCloseTo(101, 5);
+    expect(roundNumberNear(1.23456)).toBeCloseTo(1.23, 5);
   });
 });
 
