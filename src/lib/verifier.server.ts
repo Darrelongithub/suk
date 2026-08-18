@@ -1,22 +1,13 @@
 import { VERIFIER_SYSTEM_PROMPT, type VerifyResult } from "./verifier.prompt";
 
-interface Attempt {
-  provider: VerifyResult["provider"];
-  url: string;
-  model: string;
-  key: string;
-  headers?: Record<string, string>;
-}
-
-interface ChatResponse {
-  choices?: {
-    message?: { content?: string; reasoning?: string; reasoning_content?: string };
-  }[];
-  error?: { message?: string };
-}
-
-const PER_MODEL_TIMEOUT_MS = 45_000;
+const MODEL = "gemini-2.5-flash";
+const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 const OHLC_CHAR_LIMIT = 60_000;
+
+interface GeminiResponse {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  error?: { message?: string; status?: string };
+}
 
 function trimCsv(csv: string): string {
   if (csv.length <= OHLC_CHAR_LIMIT) return csv;
@@ -33,75 +24,49 @@ function trimCsv(csv: string): string {
   return `${head}\n${tail.join("\n")}\n(note: older rows truncated to fit the context window)`;
 }
 
-function buildAttempts(): Attempt[] {
-  const attempts: Attempt[] = [];
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  const openRouterKey = process.env["OPENROUTER_API_KEY"];
-  const nvidiaKey = process.env["NVIDIA_API_KEY"];
-
-  if (lovableKey) {
-    for (const model of ["google/gemini-2.5-flash", "openai/gpt-5-mini"]) {
-      attempts.push({
-        provider: "lovable",
-        url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-        model,
-        key: lovableKey,
-      });
-    }
+/** Human-readable explanation for the statuses Google AI Studio actually returns. */
+function explain(status: number, message: string): string {
+  if (status === 429) {
+    return `Google AI Studio free-tier limit reached (10 requests/minute, 250/day) — wait a moment and re-run. ${message}`;
   }
-  if (openRouterKey) {
-    for (const model of ["nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-20b:free"]) {
-      attempts.push({
-        provider: "openrouter",
-        url: "https://openrouter.ai/api/v1/chat/completions",
-        model,
-        key: openRouterKey,
-        headers: {
-          "HTTP-Referer": "https://structure-scout.lovable.app",
-          "X-Title": "Structure Scout",
-        },
-      });
-    }
+  if (status === 400 || status === 403) {
+    return `Gemini rejected the key or request (${status}) — check GEMINI_API_KEY. ${message}`;
   }
-  if (nvidiaKey) {
-    attempts.push({
-      provider: "nvidia",
-      url: "https://integrate.api.nvidia.com/v1/chat/completions",
-      model: "deepseek-ai/deepseek-r1",
-      key: nvidiaKey,
-    });
-  }
-  return attempts;
+  return `Gemini error ${status}: ${message}`;
 }
 
-async function callChat(
-  attempt: Attempt,
-  messages: { role: string; content: string }[],
-): Promise<string> {
-  const res = await fetch(attempt.url, {
+async function callGemini(apiKey: string, userContent: string): Promise<string> {
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: VERIFIER_SYSTEM_PROMPT }] },
+    contents: [{ role: "user", parts: [{ text: userContent }] }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+  });
+
+  // No abort timer: the generation is billed even if we hang up on it.
+  const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${attempt.key}`,
       "Content-Type": "application/json",
-      ...(attempt.headers ?? {}),
+      "x-goog-api-key": apiKey,
     },
-    body: JSON.stringify({ model: attempt.model, messages, temperature: 0.2, max_tokens: 3000 }),
-    signal: AbortSignal.timeout(PER_MODEL_TIMEOUT_MS),
+    body,
   });
+
   const text = await res.text();
-  let payload: ChatResponse = {};
+  let payload: GeminiResponse = {};
   try {
-    payload = JSON.parse(text) as ChatResponse;
+    payload = JSON.parse(text) as GeminiResponse;
   } catch {
     /* non-JSON error body */
   }
-  if (!res.ok) throw new Error(payload.error?.message ?? `${res.status} ${text.slice(0, 200)}`);
-  const choice = payload.choices?.[0]?.message;
-  const content =
-    (choice?.content ?? "").trim() ||
-    (choice?.reasoning ?? "").trim() ||
-    (choice?.reasoning_content ?? "").trim();
-  if (!content) throw new Error("empty response from model");
+  if (!res.ok) {
+    throw new Error(explain(res.status, payload.error?.message ?? text.slice(0, 300)));
+  }
+  const content = (payload.candidates?.[0]?.content?.parts ?? [])
+    .map((part) => part.text ?? "")
+    .join("")
+    .trim();
+  if (!content) throw new Error("Gemini returned an empty response");
   return content;
 }
 
@@ -110,7 +75,7 @@ export type VerifyEvent =
   | { type: "result"; result: VerifyResult }
   | { type: "error"; message: string };
 
-/** Runs the picker, emitting a progress event per stage so the console can narrate it. */
+/** Runs the picker on Gemini 2.5 Flash, emitting progress events for the console. */
 export async function* runVerifier(input: {
   scoutData: string;
   ohlcCsv?: string;
@@ -123,51 +88,37 @@ export async function* runVerifier(input: {
     trimCsv((input.ohlcCsv ?? "").trim()) || "(none supplied)",
   ].join("\n");
 
-  const messages = [
-    { role: "system", content: VERIFIER_SYSTEM_PROMPT },
-    { role: "user", content: userContent },
-  ];
-
-  const attempts = buildAttempts();
   yield {
     type: "log",
-    message: `Picker: prompt built (${Math.round(userContent.length / 1000)}k chars) · ${attempts.length} model(s) queued`,
+    message: `Picker: prompt built (${Math.round(userContent.length / 1000)}k chars)`,
   };
 
-  if (attempts.length === 0) {
-    yield { type: "error", message: "No AI provider key is configured for the picker." };
+  const apiKey = process.env["GEMINI_API_KEY"];
+  if (!apiKey) {
+    yield { type: "error", message: "GEMINI_API_KEY is not configured." };
     return;
   }
 
-  const warnings: string[] = [];
-  for (const [i, attempt] of attempts.entries()) {
+  yield { type: "log", message: `Picker: asking Google AI Studio · ${MODEL}…` };
+  const started = Date.now();
+  try {
+    const verdict = await callGemini(apiKey, userContent);
     yield {
       type: "log",
-      message: `Picker: asking ${attempt.provider} · ${attempt.model} (${i + 1}/${attempts.length})…`,
+      message: `Picker: ${MODEL} answered in ${((Date.now() - started) / 1000).toFixed(1)}s`,
+      tone: "success",
     };
-    const started = Date.now();
-    try {
-      const verdict = await callChat(attempt, messages);
-      yield {
-        type: "log",
-        message: `Picker: ${attempt.model} answered in ${((Date.now() - started) / 1000).toFixed(1)}s`,
-        tone: "success",
-      };
-      yield {
-        type: "result",
-        result: { verdict, provider: attempt.provider, model: attempt.model, warnings },
-      };
-      return;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      warnings.push(`${attempt.provider} ${attempt.model} failed: ${message}`);
-      yield {
-        type: "log",
-        message: `Picker: ${attempt.model} failed after ${((Date.now() - started) / 1000).toFixed(1)}s — ${message}`,
-        tone: "warn",
-      };
-    }
+    yield {
+      type: "result",
+      result: { verdict, provider: "gemini", model: MODEL, warnings: [] },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    yield {
+      type: "log",
+      message: `Picker: failed after ${((Date.now() - started) / 1000).toFixed(1)}s — ${message}`,
+      tone: "error",
+    };
+    yield { type: "error", message };
   }
-
-  yield { type: "error", message: `Picker failed. ${warnings.join(" | ")}` };
 }
