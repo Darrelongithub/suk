@@ -92,6 +92,15 @@ export interface ResultRow {
   setupStatus?: SetupStatus | undefined;
   statusNote?: string | undefined;
   candlesSinceTrigger?: number | undefined;
+  // --- Computed context fields (ranking/reasoning only, never pass/fail gates) ---
+  /** ATR(30m) at the setup candle, surfaced explicitly on PASS rows. */
+  atr30m?: number | undefined;
+  confluence?: import("./confluence").ConfluenceContext | undefined;
+  htf?: import("./htf").HtfTrendContext | undefined;
+  sessionContext?: import("./session-context").SessionPatternContext | undefined;
+  /** Fresh / Aging / Stale — independent of setupStatus. */
+  stalenessFlag?: import("./staleness").StalenessFlag | undefined;
+  stalenessReason?: string | undefined;
 }
 
 export interface OverlapEntry {
