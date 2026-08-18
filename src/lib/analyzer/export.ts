@@ -104,7 +104,9 @@ export function buildHistoryReport(analysis: Analysis): string {
   lines.push("");
 
   lines.push("=== RESULTS ===");
-  lines.push("datetime | strategy | result | status | trend | entry | SL | TP | RR | reason");
+  lines.push(
+    "datetime | strategy | result | status | trend | entry | SL | TP | RR | ATR(30m) | confluence | H1/H4/D1 trend | HTF alignment | asian_range | london_open | ny_open | staleness | reason",
+  );
   for (const row of analysis.results) {
     lines.push(
       [
@@ -117,6 +119,16 @@ export function buildHistoryReport(analysis: Analysis): string {
         fmt(row.sl),
         fmt(row.tp),
         row.rr === undefined ? "-" : row.rr.toFixed(2),
+        row.atr30m === undefined ? "-" : fmt(row.atr30m),
+        row.confluence ? `${row.confluence.score} (${row.confluence.matched.join("+") || "none"})` : "-",
+        row.htf ? `${row.htf.h1}/${row.htf.h4}/${row.htf.d1}` : "-",
+        row.htf
+          ? `${row.htf.h1Alignment}/${row.htf.h4Alignment}/${row.htf.d1Alignment}`
+          : "-",
+        row.sessionContext?.asianRangeText ?? "-",
+        row.sessionContext?.londonOpenDirection ?? "-",
+        row.sessionContext?.nyOpenDirection ?? "-",
+        row.stalenessFlag ? `${row.stalenessFlag} — ${row.stalenessReason ?? ""}` : "-",
         row.reason,
       ].join(" | "),
     );
@@ -124,9 +136,10 @@ export function buildHistoryReport(analysis: Analysis): string {
 
   for (const invalid of analysis.invalidRowList) {
     lines.push(
-      `${invalid.datetime} | (all strategies) | SKIPPED | - | - | - | - | - | - | ${invalid.reason}`,
+      `${invalid.datetime} | (all strategies) | SKIPPED | ${Array(15).fill("-").join(" | ")} | ${invalid.reason}`,
     );
   }
+
 
   return lines.join("\n");
 }
