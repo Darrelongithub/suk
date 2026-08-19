@@ -305,9 +305,11 @@ export default function AnalysisV2() {
                 ))}
               </div>
 
-              <div className="flex flex-col gap-3">
-                <h3 className="text-sm font-medium text-foreground">Per strategy</h3>
-                <div className="flex flex-col gap-2">
+              <details className="rounded-md border border-border bg-secondary/30 px-4 py-3">
+                <summary className="cursor-pointer text-sm font-medium text-foreground">
+                  Per strategy ({analysis.perStrategy.length})
+                </summary>
+                <div className="mt-3 flex flex-col gap-2">
                   {analysis.perStrategy.map((strategy) => (
                     <details
                       key={strategy.strategyId}
@@ -339,7 +341,8 @@ export default function AnalysisV2() {
                     </details>
                   ))}
                 </div>
-              </div>
+              </details>
+
 
               <div className="flex flex-col gap-3">
                 <h3 className="text-sm font-medium text-foreground">
