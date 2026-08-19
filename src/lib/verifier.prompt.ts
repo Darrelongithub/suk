@@ -27,7 +27,7 @@ Rules:
   likely.
 - State data_age, diffed vs today, in the output.
 - Every structural claim cites timestamp + OHLC.
-- Silently weigh >=2 setups from the list; state why the weaker one was rejected, citing the specific
+- Silently weigh ≥2 setups from the list; state why the weaker one was rejected, citing the specific
   failing value.
 - If SL sits exactly at a visible swing point, flag the stop-cluster risk rather than assuming it's
   safe.
