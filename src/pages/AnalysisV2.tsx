@@ -456,9 +456,12 @@ export default function AnalysisV2() {
               key={analysis.lastRowDatetime}
               scoutData={buildReport(analysis, "LIVE")}
               ohlcCsv={csv ?? ""}
+              hasLiveSetups={analysis.live.length > 0}
               onVerdict={handleVerdict}
+              onNoSetups={handleNoSetups}
               onLog={log}
             />
+
 
 
             <section className="panel flex flex-col gap-4 p-6">
