@@ -159,14 +159,14 @@ export default function AnalysisV2() {
     };
   }, [csv, log]);
 
-  const handleVerdict = useCallback(
-    (result: VerifyResult) => {
+  const bundleWith = useCallback(
+    (verdict: string) => {
       if (!analysis) return;
       const key = analysis.lastRowDatetime || "analysis";
       if (bundledFor.current === key) return;
       bundledFor.current = key;
       log("Bundling reports + charts for download…");
-      void downloadBundle(analysis, { csv, csvName, verdict: result.verdict }).then((outcome) => {
+      void downloadBundle(analysis, { csv, csvName, verdict }).then((outcome) => {
         if (outcome) {
           setBundle(outcome);
           log(
@@ -180,6 +180,20 @@ export default function AnalysisV2() {
     },
     [analysis, csv, csvName, log],
   );
+
+  const handleVerdict = useCallback(
+    (result: VerifyResult) => bundleWith(result.verdict),
+    [bundleWith],
+  );
+
+  const handleNoSetups = useCallback(
+    () =>
+      bundleWith(
+        "No live/actionable PASS setups as of the last candle — nothing was sent to the picker.",
+      ),
+    [bundleWith],
+  );
+
 
   const rows: ResultRow[] = useMemo(() => {
     if (!analysis) return [];
