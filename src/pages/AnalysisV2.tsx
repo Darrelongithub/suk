@@ -388,18 +388,18 @@ export default function AnalysisV2() {
                 )}
               </div>
 
-              <div className="flex flex-col gap-3">
-                <h3 className="text-sm font-medium text-foreground">
+              <details className="flex flex-col gap-3 rounded-md border border-border bg-secondary/30 px-4 py-3">
+                <summary className="cursor-pointer text-sm font-medium text-foreground">
                   Historical record ({analysis.historical.length}) — resolved or expired
-                </h3>
-                <p className="text-xs text-muted-foreground">
+                </summary>
+                <p className="mt-2 text-xs text-muted-foreground">
                   Valid setups that are no longer tradeable. Kept for win-rate backtesting, not
                   counted as failures.
                 </p>
                 {analysis.historical.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">none</p>
+                  <p className="mt-2 text-xs text-muted-foreground">none</p>
                 ) : (
-                  <ol className="flex flex-col gap-2">
+                  <ol className="mt-3 flex flex-col gap-2">
                     {analysis.historical.slice(0, 50).map((row, i) => (
                       <li
                         key={`${row.strategyId}-${row.index}`}
@@ -418,7 +418,8 @@ export default function AnalysisV2() {
                     ))}
                   </ol>
                 )}
-              </div>
+              </details>
+
 
               {analysis.overlaps.length > 0 ? (
                 <div className="flex flex-col gap-2">
