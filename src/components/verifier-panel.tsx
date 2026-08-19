@@ -110,7 +110,7 @@ export function VerifierPanel({
     return () => {
       cancelled = true;
     };
-  }, [scoutData, ohlcCsv]);
+  }, [scoutData, ohlcCsv, hasLiveSetups]);
 
   return (
     <section className="panel flex flex-col gap-4 p-6">
@@ -124,14 +124,17 @@ export function VerifierPanel({
 
       <div className="flex flex-wrap items-center gap-3">
         <span className="num text-xs text-muted-foreground">
-          {busy
-            ? "Verifying…"
-            : result
-              ? `via ${result.provider} · ${result.model}`
-              : error
-                ? "Verifier failed"
-                : "Waiting for analysis"}
+          {skipped
+            ? "No live/actionable setups — nothing sent to Gemini"
+            : busy
+              ? "Verifying…"
+              : result
+                ? `via ${result.provider} · ${result.model}`
+                : error
+                  ? "Verifier failed"
+                  : "Waiting for analysis"}
         </span>
+
       </div>
 
       {error ? (
