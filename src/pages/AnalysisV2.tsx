@@ -193,60 +193,56 @@ export default function AnalysisV2() {
   const visible = rows.slice(0, 500);
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 sm:px-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8">
-        <header className="flex flex-col gap-3">
-          <Link
-            to="/analysis"
-            className="flex w-fit items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20"
-          >
-            <ArrowLeft size={12} /> Analyser versions
-          </Link>
-          <p className="num text-xs uppercase tracking-[0.35em] text-primary">
-            Analyser V2 · Structure Scout
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Trading strategy analyzer
-          </h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Every candle is checked against 13 structure strategies. Nothing is estimated — each
-            result traces back to a real row in the generated CSV.
-          </p>
+    <main className="min-h-screen bg-background px-4 py-8 sm:px-8">
+      <div className="mx-auto flex max-w-6xl flex-col gap-5">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Link
+              to="/analysis"
+              className="flex w-fit items-center gap-1.5 text-[11px] font-semibold text-primary transition-opacity hover:opacity-80"
+            >
+              <ArrowLeft size={12} /> Analyser versions
+            </Link>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              Trading strategy analyzer
+            </h1>
+            <p className="num text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+              V2 · Structure Scout · 13 strategies
+            </p>
+          </div>
+          <StatusDot status={status} />
         </header>
 
-        <section className="panel flex flex-col gap-4 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-base font-medium text-foreground">
-                Generated CSV{csvName ? ` · ${csvName}` : ""}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {snapshot
-                  ? `${snapshot.symbol} · ${snapshot.range || "range unspecified"} — analysed automatically, verifier runs next, then the bundle downloads.`
-                  : "No CSV yet — generate one on the fetcher page and it will be analysed here automatically."}
-              </p>
-            </div>
-            <StatusDot status={status} />
+        <section className="panel flex flex-col gap-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="num text-xs text-foreground">
+              {csvName ? csvName : "No CSV yet"}
+              {snapshot ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {snapshot.symbol} · {snapshot.range || "range unspecified"}
+                </span>
+              ) : null}
+            </p>
+            {!csv ? (
+              <Link
+                to="/"
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Go to the generator
+              </Link>
+            ) : null}
           </div>
 
-          {!csv ? (
-            <Link
-              to="/"
-              className="w-fit rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Go to the generator
-            </Link>
-          ) : null}
-
           {bundle && !bundle.autoDownloaded ? (
-            <div className="flex flex-col gap-2 rounded-md border border-warning/50 bg-warning/10 px-3 py-3 text-sm text-foreground">
-              <p>The preview window blocks automatic downloads — save the bundle manually.</p>
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-warning/50 bg-warning/10 px-3 py-2 text-xs text-foreground">
+              <span>Automatic download blocked — save the bundle manually.</span>
               <a
                 href={bundle.url}
                 download={bundle.fileName}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="num w-fit rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="num rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 Save {bundle.fileName}
               </a>
@@ -258,7 +254,7 @@ export default function AnalysisV2() {
           ) : null}
 
           {error ? (
-            <p className="num rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p className="num rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {error}
             </p>
           ) : null}
@@ -270,6 +266,8 @@ export default function AnalysisV2() {
           lines={lines}
           running={status === "working"}
         />
+
+
 
 
 
