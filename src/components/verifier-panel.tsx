@@ -12,19 +12,33 @@ interface VerifierPanelProps {
   scoutData: string;
   /** Raw 30M OHLC CSV with metadata header. */
   ohlcCsv: string;
+  /** False when there are no PENDING/FILLED PASS setups — nothing is sent to Gemini. */
+  hasLiveSetups: boolean;
   /** Called once the verdict is in, so the bundle can be zipped and downloaded. */
   onVerdict?: (result: VerifyResult) => void;
+  /** Called instead of the verdict when there is nothing actionable to send. */
+  onNoSetups?: () => void;
   /** Streams verifier stage messages into the analysis console. */
   onLog?: (message: string, tone?: "info" | "warn" | "error" | "success") => void;
 }
 
-export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: VerifierPanelProps) {
+export function VerifierPanel({
+  scoutData,
+  ohlcCsv,
+  hasLiveSetups,
+  onVerdict,
+  onNoSetups,
+  onLog,
+}: VerifierPanelProps) {
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [skipped, setSkipped] = useState(false);
   const started = useRef(false);
   const onVerdictRef = useRef(onVerdict);
   onVerdictRef.current = onVerdict;
+  const onNoSetupsRef = useRef(onNoSetups);
+  onNoSetupsRef.current = onNoSetups;
   const onLogRef = useRef(onLog);
   onLogRef.current = onLog;
 
@@ -33,11 +47,22 @@ export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: Verifier
     started.current = true;
     let cancelled = false;
 
+    if (!hasLiveSetups) {
+      setSkipped(true);
+      onLogRef.current?.(
+        "Picker: no live/actionable PASS setups — nothing sent to Gemini, downloading the report instead.",
+        "warn",
+      );
+      onNoSetupsRef.current?.();
+      return;
+    }
+
     (async () => {
       setBusy(true);
       setError(null);
       setResult(null);
-      onLogRef.current?.("Picker: sending live setups + OHLC to Gemini 2.5 Flash…");
+      onLogRef.current?.("Picker: sending live PASS setups + OHLC to Gemini…");
+
       try {
         const res = await fetch("/api/verify", {
           method: "POST",
@@ -85,7 +110,7 @@ export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: Verifier
     return () => {
       cancelled = true;
     };
-  }, [scoutData, ohlcCsv]);
+  }, [scoutData, ohlcCsv, hasLiveSetups]);
 
   return (
     <section className="panel flex flex-col gap-4 p-6">
@@ -99,14 +124,17 @@ export function VerifierPanel({ scoutData, ohlcCsv, onVerdict, onLog }: Verifier
 
       <div className="flex flex-wrap items-center gap-3">
         <span className="num text-xs text-muted-foreground">
-          {busy
-            ? "Verifying…"
-            : result
-              ? `via ${result.provider} · ${result.model}`
-              : error
-                ? "Verifier failed"
-                : "Waiting for analysis"}
+          {skipped
+            ? "No live/actionable setups — nothing sent to Gemini"
+            : busy
+              ? "Verifying…"
+              : result
+                ? `via ${result.provider} · ${result.model}`
+                : error
+                  ? "Verifier failed"
+                  : "Waiting for analysis"}
         </span>
+
       </div>
 
       {error ? (
