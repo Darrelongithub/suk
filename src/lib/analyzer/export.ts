@@ -22,27 +22,8 @@ export function exportFileName(analysis: Analysis, kind: ReportKind = "LIVE"): s
   return `structure-scout_${kind}_${slugOf(analysis)}.txt`;
 }
 
-function contextLines(row: ResultRow): string[] {
-  const lines: string[] = [];
-  lines.push(`    ATR(30m): ${row.atr30m === undefined ? "-" : fmt(row.atr30m)}`);
-  lines.push(
-    `    Confluence: ${row.confluence ? `${row.confluence.score} confluence factors [${row.confluence.matched.join(", ") || "none"}] — ${row.confluence.detail}` : "-"}`,
-  );
-  lines.push(
-    `    HTF trend: ${row.htf ? `${row.htf.summary} · ${row.htf.alignedCount}/3 aligned` : "-"}`,
-  );
-  lines.push(
-    `    Session: ${row.sessionContext ? `${row.sessionContext.setupSession} · Asian range ${row.sessionContext.asianRangeText} · London open ${row.sessionContext.londonOpenDirection} · NY open ${row.sessionContext.nyOpenDirection}` : "-"}`,
-  );
-  lines.push(
-    `    Staleness: ${row.stalenessFlag ?? "-"}${row.stalenessReason ? ` — ${row.stalenessReason}` : ""}`,
-  );
-  return lines;
-}
-
 function setupLine(row: ResultRow, i: number): string {
-  const head = `${i + 1}. [${row.setupStatus ?? "-"}] ${row.strategy} @ ${row.datetime} | ${row.side ?? "-"} | entry ${fmt(row.entry)} | SL ${fmt(row.sl)} | TP ${fmt(row.tp)} | RR ${row.rr === undefined ? "-" : row.rr.toFixed(2)} | ${row.statusNote ?? ""}`;
-  return [head, ...contextLines(row)].join("\n");
+  return `${i + 1}. [${row.setupStatus ?? "-"}] ${row.strategy} @ ${row.datetime} | ${row.side ?? "-"} | entry ${fmt(row.entry)} | SL ${fmt(row.sl)} | TP ${fmt(row.tp)} | RR ${row.rr === undefined ? "-" : row.rr.toFixed(2)} | ${row.statusNote ?? ""}`;
 }
 
 function header(analysis: Analysis, title: string): string[] {
@@ -104,9 +85,7 @@ export function buildHistoryReport(analysis: Analysis): string {
   lines.push("");
 
   lines.push("=== RESULTS ===");
-  lines.push(
-    "datetime | strategy | result | status | trend | entry | SL | TP | RR | ATR(30m) | confluence | H1/H4/D1 trend | HTF alignment | asian_range | london_open | ny_open | staleness | reason",
-  );
+  lines.push("datetime | strategy | result | status | trend | entry | SL | TP | RR | reason");
   for (const row of analysis.results) {
     lines.push(
       [
@@ -119,16 +98,6 @@ export function buildHistoryReport(analysis: Analysis): string {
         fmt(row.sl),
         fmt(row.tp),
         row.rr === undefined ? "-" : row.rr.toFixed(2),
-        row.atr30m === undefined ? "-" : fmt(row.atr30m),
-        row.confluence ? `${row.confluence.score} (${row.confluence.matched.join("+") || "none"})` : "-",
-        row.htf ? `${row.htf.h1}/${row.htf.h4}/${row.htf.d1}` : "-",
-        row.htf
-          ? `${row.htf.h1Alignment}/${row.htf.h4Alignment}/${row.htf.d1Alignment}`
-          : "-",
-        row.sessionContext?.asianRangeText ?? "-",
-        row.sessionContext?.londonOpenDirection ?? "-",
-        row.sessionContext?.nyOpenDirection ?? "-",
-        row.stalenessFlag ? `${row.stalenessFlag} — ${row.stalenessReason ?? ""}` : "-",
         row.reason,
       ].join(" | "),
     );
@@ -136,10 +105,9 @@ export function buildHistoryReport(analysis: Analysis): string {
 
   for (const invalid of analysis.invalidRowList) {
     lines.push(
-      `${invalid.datetime} | (all strategies) | SKIPPED | ${Array(15).fill("-").join(" | ")} | ${invalid.reason}`,
+      `${invalid.datetime} | (all strategies) | SKIPPED | - | - | - | - | - | - | ${invalid.reason}`,
     );
   }
-
 
   return lines.join("\n");
 }
