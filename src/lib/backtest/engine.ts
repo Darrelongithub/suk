@@ -101,13 +101,28 @@ export function isWeekend(dayKey: string): boolean {
   return weekday === 0 || weekday === 6;
 }
 
-/** Every calendar day in the inclusive range, weekends already removed. */
-export function tradingDays(fromDay: string, toDay: string): string[] {
+/**
+ * The same calendar day, one month earlier, in pure UTC — no local timezone
+ * drift. Clamps to the last day of the target month (e.g. 31 Mar -> 28/29 Feb).
+ */
+export function monthWindowStart(dayKey: string): string {
+  const date = dayDate(dayKey);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const day = date.getUTCDate();
+  const targetYear = month === 0 ? year - 1 : year;
+  const targetMonth = month === 0 ? 11 : month - 1;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  return toDayKey(new Date(Date.UTC(targetYear, targetMonth, Math.min(day, lastDay))));
+}
+
+/** Every calendar day in the inclusive range — weekends included. */
+export function rangeDays(fromDay: string, toDay: string): string[] {
   const days: string[] = [];
   if (dayDate(fromDay) > dayDate(toDay)) return days;
   let current = fromDay;
   while (dayDate(current) <= dayDate(toDay)) {
-    if (!isWeekend(current)) days.push(current);
+    days.push(current);
     current = addUtcDays(current, 1);
   }
   return days;
