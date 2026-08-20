@@ -1,107 +1,42 @@
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 
-import type { VerifyResult } from "@/lib/verifier.prompt";
-
-type VerifyEvent =
-  | { type: "log"; message: string; tone?: "info" | "warn" | "error" | "success" }
-  | { type: "result"; result: VerifyResult }
-  | { type: "error"; message: string };
+import { verifySetup, type VerifyResult } from "@/lib/verifier.functions";
 
 interface VerifierPanelProps {
   /** Analyzer LIVE report: SUMMARY block, live PASS setups, overlaps. */
   scoutData: string;
   /** Raw 30M OHLC CSV with metadata header. */
   ohlcCsv: string;
-  /** False when there are no PENDING/FILLED PASS setups — nothing is sent to Gemini. */
-  hasLiveSetups: boolean;
   /** Called once the verdict is in, so the bundle can be zipped and downloaded. */
   onVerdict?: (result: VerifyResult) => void;
-  /** Called instead of the verdict when there is nothing actionable to send. */
-  onNoSetups?: () => void;
-  /** Streams verifier stage messages into the analysis console. */
-  onLog?: (message: string, tone?: "info" | "warn" | "error" | "success") => void;
 }
 
-export function VerifierPanel({
-  scoutData,
-  ohlcCsv,
-  hasLiveSetups,
-  onVerdict,
-  onNoSetups,
-  onLog,
-}: VerifierPanelProps) {
+export function VerifierPanel({ scoutData, ohlcCsv, onVerdict }: VerifierPanelProps) {
+  const runVerifier = useServerFn(verifySetup);
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [skipped, setSkipped] = useState(false);
   const started = useRef(false);
   const onVerdictRef = useRef(onVerdict);
   onVerdictRef.current = onVerdict;
-  const onNoSetupsRef = useRef(onNoSetups);
-  onNoSetupsRef.current = onNoSetups;
-  const onLogRef = useRef(onLog);
-  onLogRef.current = onLog;
 
   useEffect(() => {
     if (started.current || scoutData.trim() === "") return;
     started.current = true;
     let cancelled = false;
 
-    if (!hasLiveSetups) {
-      setSkipped(true);
-      onLogRef.current?.(
-        "Picker: no live/actionable PASS setups — nothing sent to Gemini, downloading the report instead.",
-        "warn",
-      );
-      onNoSetupsRef.current?.();
-      return;
-    }
-
     (async () => {
       setBusy(true);
       setError(null);
       setResult(null);
-      onLogRef.current?.("Picker: sending live PASS setups + OHLC to Gemini…");
-
       try {
-        const res = await fetch("/api/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scoutData, ohlcCsv }),
-        });
-        if (!res.ok || !res.body) {
-          throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          buffer += decoder.decode(chunk.value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (line.trim() === "" || cancelled) continue;
-            const event = JSON.parse(line) as VerifyEvent;
-            if (event.type === "log") onLogRef.current?.(event.message, event.tone);
-            if (event.type === "error") {
-              setError(event.message);
-              onLogRef.current?.(event.message, "error");
-            }
-            if (event.type === "result") {
-              setResult(event.result);
-              onVerdictRef.current?.(event.result);
-            }
-          }
-        }
+        const outcome = await runVerifier({ data: { scoutData, ohlcCsv } });
+        if (cancelled) return;
+        setResult(outcome);
+        onVerdictRef.current?.(outcome);
       } catch (err) {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : String(err);
-          setError(message);
-          onLogRef.current?.(`Picker failed: ${message}`, "error");
-        }
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -110,7 +45,7 @@ export function VerifierPanel({
     return () => {
       cancelled = true;
     };
-  }, [scoutData, ohlcCsv, hasLiveSetups]);
+  }, [scoutData, ohlcCsv, runVerifier]);
 
   return (
     <section className="panel flex flex-col gap-4 p-6">
@@ -124,17 +59,14 @@ export function VerifierPanel({
 
       <div className="flex flex-wrap items-center gap-3">
         <span className="num text-xs text-muted-foreground">
-          {skipped
-            ? "No live/actionable setups — nothing sent to Gemini"
-            : busy
-              ? "Verifying…"
-              : result
-                ? `via ${result.provider} · ${result.model}`
-                : error
-                  ? "Verifier failed"
-                  : "Waiting for analysis"}
+          {busy
+            ? "Verifying…"
+            : result
+              ? `via ${result.provider} · ${result.model}`
+              : error
+                ? "Verifier failed"
+                : "Waiting for analysis"}
         </span>
-
       </div>
 
       {error ? (
